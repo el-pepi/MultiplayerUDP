@@ -1,4 +1,6 @@
 ﻿  MyForm.cpp
+  Source.cpp
+  Generando código...
   MyForm.obj : /DEBUG:FASTLINK no se admite cuando hay presente código administrado; reiniciando vínculo con /DEBUG:FULL
-  tateti server.vcxproj -> C:\Users\822\Desktop\tateti server\tateti Server\Debug\tateti server.exe
-  tateti server.vcxproj -> C:\Users\822\Desktop\tateti server\tateti Server\Debug\tateti server.pdb (Partial PDB)
+  tateti server.vcxproj -> C:\Users\822\Desktop\tateti server\Tateti Server\Debug\tateti server.exe
+  tateti server.vcxproj -> C:\Users\822\Desktop\tateti server\Tateti Server\Debug\tateti server.pdb (Partial PDB)
