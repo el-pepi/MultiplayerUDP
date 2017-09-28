@@ -12,7 +12,6 @@ using namespace std;
 #pragma comment(lib,"ws2_32.lib") //Winsock Library
 
 #define BUFLEN 512  //Max length of buffer
-#define PORT 8888   //The port on which to listen for incoming data
 
 int port = 0;
 
@@ -59,6 +58,13 @@ int main()
 	}
 	puts("Bind done");
 
+
+
+	int playerTurn = 0;
+	int connectedPlayers = 0;
+	Player players[2];
+
+
 	//keep listening for data
 	while (1)
 	{
@@ -75,9 +81,24 @@ int main()
 			exit(EXIT_FAILURE);
 		}
 
+
 		//print details of the client/peer and the data received
 		printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
 		printf("Data: %s\n", buf);
+
+		if (strcmp(buf, "connect") == 0) {
+			if (connectedPlayers >= 2) {
+
+			}
+			else
+			{
+				Player* p = new Player();
+				/*p
+				connectedPlayers++;*/
+			}
+		}
+
+		strlen(buf);
 
 		//now reply the client with the same data
 		if (sendto(s, buf, recv_len, 0, (struct sockaddr*) &si_other, slen) == SOCKET_ERROR)
@@ -92,4 +113,9 @@ int main()
 
 	return 0;
 }
+
+class Player {
+public:
+	char* _ip;
+};
 
