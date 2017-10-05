@@ -1,3 +1,2 @@
 ﻿  TatetiServer.cpp
-  TatetiServer.vcxproj -> C:\Users\822\Documents\MultiplayerUDP\TatetiServer\Debug\TatetiServer.exe
-  TatetiServer.vcxproj -> C:\Users\822\Documents\MultiplayerUDP\TatetiServer\Debug\TatetiServer.pdb (Full PDB)
+c:\users\822\documents\multiplayerudp\tatetiserver\tatetiserver\tatetiserver.cpp(4): error C2859: C:\Users\822\Documents\MultiplayerUDP\TatetiServer\TatetiServer\Debug\vc140.idb no es el archivo idb que se utilizó al crear este encabezado precompilado; vuelva a crear el encabezado precompilado.

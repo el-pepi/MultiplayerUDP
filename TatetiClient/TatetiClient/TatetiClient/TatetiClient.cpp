@@ -17,10 +17,45 @@ using namespace std;
 char ip[15];
 int port = 0;
 
+SOCKET s;
+int slen;
+
+enum MessageType
+{
+	Connect,
+	Fail,
+	Success,
+	Name,
+	Move
+};
+
+struct Message {
+public:
+	MessageType type;
+	char* msg;
+};
+
+void SendMsg(sockaddr_in adr, Message msg) {
+
+	char m[BUFLEN];
+
+	memcpy(m, &msg, sizeof(Message));
+
+	Message message;
+	memcpy(&message,m,sizeof(Message));
+
+
+	if (sendto(s, m, sizeof(Message), 0, (struct sockaddr*) &adr, slen) == SOCKET_ERROR)
+	{
+		printf("sendto() failed with error code : %d", WSAGetLastError());
+		exit(EXIT_FAILURE);
+	}
+}
+
 int main()
 {
 	struct sockaddr_in si_other;
-	int s, slen = sizeof(si_other);
+	slen = sizeof(si_other);
 	char buf[BUFLEN];
 	char message[BUFLEN];
 	WSADATA wsa;
@@ -57,6 +92,12 @@ int main()
 	//start communication
 	while (1)
 	{
+		Message msg;
+		msg.type = MessageType::Move;
+		msg.msg = "Hola";
+
+		SendMsg(si_other,msg);
+		/*
 		printf("Enter message : ");
 		cin >> message;
 		//send the message
@@ -65,7 +106,7 @@ int main()
 			printf("sendto() failed with error code : %d", WSAGetLastError());
 			exit(EXIT_FAILURE);
 		}
-
+		*/
 		//receive a reply and print it
 		//clear the buffer by filling null, it might have previously received data
 		memset(buf, '\0', BUFLEN);
@@ -76,7 +117,9 @@ int main()
 			exit(EXIT_FAILURE);
 		}
 
-		puts(buf);
+		Message* message = reinterpret_cast<Message*>(buf);
+		printf(message->msg);
+		break;
 	}
 
 	closesocket(s);

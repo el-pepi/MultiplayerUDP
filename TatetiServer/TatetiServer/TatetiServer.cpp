@@ -14,12 +14,49 @@ using namespace std;
 #define BUFLEN 512  //Max length of buffer
 
 int port = 0;
+SOCKET s;
+int slen;
+
+class Player {
+public:
+	sockaddr_in address;
+};
+
+enum MessageType
+{
+	Connect,
+	Fail,
+	Success,
+	Name,
+	Move
+};
+
+struct Message {
+public:
+	MessageType type;
+	char* msg;
+};
+
+void SendMsg(sockaddr_in adr,Message* msg) {
+
+	char m[BUFLEN];
+	memset(m, '\0', BUFLEN);
+	memcpy(m, &msg, sizeof(msg));
+	//memcpy(m + sizeof(msg->type), &msg->msg, sizeof(msg->msg));
+	//memcpy(m, &msg->type, sizeof(msg->type));
+
+	Message* message = reinterpret_cast<Message*>(m);
+	if (sendto(s, m, sizeof(m), 0, (struct sockaddr*) &adr, slen) == SOCKET_ERROR)
+	{
+		printf("sendto() failed with error code : %d", WSAGetLastError());
+		exit(EXIT_FAILURE);
+	}
+}
 
 int main()
 {
-	SOCKET s;
 	struct sockaddr_in server, si_other;
-	int slen, recv_len;
+	int recv_len;
 	char buf[BUFLEN];
 	WSADATA wsa;
 
@@ -62,7 +99,7 @@ int main()
 
 	int playerTurn = 0;
 	int connectedPlayers = 0;
-	Player players[2];
+	Player* players[2];
 
 
 	//keep listening for data
@@ -86,16 +123,37 @@ int main()
 		printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
 		printf("Data: %s\n", buf);
 
-		if (strcmp(buf, "connect") == 0) {
-			if (connectedPlayers >= 2) {
 
+		Message message;
+
+		memcpy(&message, buf, recv_len);
+		//Message* message = reinterpret_cast<Message*>(buf);
+
+		Message* m = new Message();
+		switch (message.type)
+		{
+		case MessageType::Connect:
+			if (connectedPlayers < 2) {
+				Player* p = new Player();
+				p->address = si_other;
+				players[connectedPlayers] = p;
+				connectedPlayers++;
+				m->type = MessageType::Success;
+				m->msg = "Conectado exitosamente";
+				SendMsg(si_other,m);
 			}
 			else
 			{
-				Player* p = new Player();
-				/*p
-				connectedPlayers++;*/
+				m->type = MessageType::Fail;
+				m->msg = "ERROR: Server lleno";
+				SendMsg(si_other, m);
 			}
+			break;
+		default:
+			m->type = MessageType::Fail;
+			m->msg = "ERROR: Comando desconocido";
+			SendMsg(si_other, m);
+			break;
 		}
 
 		strlen(buf);
@@ -113,9 +171,4 @@ int main()
 
 	return 0;
 }
-
-class Player {
-public:
-	char* _ip;
-};
 
