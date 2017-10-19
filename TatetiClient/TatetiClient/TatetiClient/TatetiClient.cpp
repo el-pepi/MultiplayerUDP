@@ -22,6 +22,7 @@ SOCKET s;
 int slen;
 
 string name;
+string table;
 
 enum MessageType
 {
@@ -30,7 +31,8 @@ enum MessageType
 	Success,
 	Name,
 	Move,
-	Update
+	Update,
+	SetTurn
 };
 
 enum GameStates {
@@ -41,6 +43,7 @@ enum GameStates {
 };
 
 GameStates gameState;
+struct sockaddr_in si_other;
 
 struct Message {
 public:
@@ -48,31 +51,40 @@ public:
 	char msg[256];
 };
 
-void SendMsg(sockaddr_in adr, Message msg) {
+void SendMsg(sockaddr_in adr, string msg, MessageType type) {
 
 	char m[BUFLEN];
 
-	memcpy(m, &msg, sizeof(Message));
-
 	Message message;
-	memcpy(&message,m,sizeof(Message));
+	message.type = type;
+	strcpy_s(message.msg, msg.c_str());
 
+	memcpy(m, &message, sizeof(Message));
 
 	if (sendto(s, m, sizeof(Message), 0, (struct sockaddr*) &adr, slen) == SOCKET_ERROR)
 	{
 		printf("sendto() failed with error code : %d", WSAGetLastError());
+		system("pause");
 		exit(EXIT_FAILURE);
 	}
 }
 
 void DrawTable() {
-	
 	system("cls");
-	printf("%s%s\n","You are: ",name.c_str());
+	printf("%s%s\n", "You are: ", name.c_str());
+	printf("%s\n", table.c_str());
 }
 
 void GetData(char buf[BUFLEN]) {
 	Message* m = reinterpret_cast<Message*>(buf);
+
+	if (m->type == MessageType::Update) {
+		table = m->msg;
+		DrawTable();
+		return;
+	}
+
+
 	switch (gameState)
 	{
 	case GameStates::Connecting:
@@ -91,8 +103,38 @@ void GetData(char buf[BUFLEN]) {
 		break;
 	case GameStates::Waiting:
 		if (m->type == MessageType::Success) {
+			//DrawTable();
+			printf("%s\n", m->msg);
+			gameState = GameStates::NotMyTurn;
+		}
+		break;
+	case GameStates::NotMyTurn:
+		if (m->type == MessageType::SetTurn) {
+			//DrawTable();
+			printf("%s\n", m->msg);
+			gameState = GameStates::MyTurn;
+
+
+			printf("Enter position: ");
+			char msg[256];
+			cin.getline(msg, sizeof(msg));
+
+			SendMsg(si_other, msg, MessageType::Move);
+
+		}
+		break;
+	case GameStates::MyTurn:
+		if (m->type == MessageType::Update) {
+			gameState = GameStates::NotMyTurn;
+		}
+		else {
 			DrawTable();
 			printf("%s\n", m->msg);
+			printf("Enter position: ");
+			char msg[256];
+			cin.getline(msg, sizeof(msg));
+
+			SendMsg(si_other, msg, MessageType::Move);
 		}
 		break;
 	}
@@ -100,7 +142,6 @@ void GetData(char buf[BUFLEN]) {
 
 int main()
 {
-	struct sockaddr_in si_other;
 	slen = sizeof(si_other);
 	char buf[BUFLEN];
 	//char message[BUFLEN];
@@ -135,10 +176,10 @@ int main()
 	si_other.sin_port = htons(port);
 	si_other.sin_addr.S_un.S_addr = inet_addr(ip);
 
-	Message msg;
-	msg.type = MessageType::Connect;
-	strcpy_s(msg.msg, "Connecting");
-	SendMsg(si_other,msg);
+	//Message msg;
+	///msg.type = MessageType::Connect;
+	//strcpy_s(msg.msg, "Connecting");
+	SendMsg(si_other,"Connecting",MessageType::Connect);
 
 	if (recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *) &si_other, &slen) == SOCKET_ERROR)
 	{
@@ -151,15 +192,6 @@ int main()
 	//start communication
 	while (1)
 	{
-		if (gameState == GameStates::MyTurn) {
-			Message m;
-			m.type = MessageType::Move;
-			printf("Enter position: ");
-			cin.get();
-			cin.getline(m.msg,sizeof(m.msg));
-			SendMsg(si_other,m);
-		}
-
 		//receive a reply and print it
 		//clear the buffer by filling null, it might have previously received data
 		memset(buf, '\0', BUFLEN);

@@ -33,7 +33,8 @@ enum MessageType
 	Success,
 	Name,
 	Move,
-	Update
+	Update,
+	SetTurn
 };
 
 struct Message {
@@ -44,30 +45,39 @@ public:
 
 string GetTable() {
 	string s = "";
+	std::stringstream str;
 	for (int i = 0; i < 9; i++)
 	{
 		if (values[i] == 0) {
-			s += i;
+			str << i+1;
+			//s += i;
 		}if (values[i] == -1) {
-			s += "X";
+			str << "X";
+			//s += "X";
 		}if (values[i] == 1) {
-			s += "O";
-		}if (i % 3 == 0) {
-			s += "\n";
+			//s += "O";
+			str << "O";
+		}if ((i + 1) % 3 == 0) {
+			//s += "\n";
+			str << "\n";
+		}
+		else {
+			str << "|";
 		}
 	}
-	return s;
+	printf(str.str().c_str());
+	return str.str();
 }
 
-void SendMsg(sockaddr_in adr, Message msg) {
+void SendMsg(sockaddr_in adr,string msg, MessageType type) {
 
 	char m[BUFLEN];
 
-	memcpy(m, &msg, sizeof(Message));
-
 	Message message;
-	memcpy(&message, m, sizeof(Message));
+	message.type = type;
+	strcpy_s(message.msg, msg.c_str());
 
+	memcpy(m, &message, sizeof(Message));
 
 	if (sendto(s, m, sizeof(Message), 0, (struct sockaddr*) &adr, slen) == SOCKET_ERROR)
 	{
@@ -157,7 +167,6 @@ int main()
 
 		printf("Data: %s\n", message.msg);
 
-		Message m;
 		switch (message.type)
 		{
 		case MessageType::Connect:
@@ -165,36 +174,32 @@ int main()
 				Player* p = new Player();
 				p->address = si_other;
 				players[connectedPlayers] = p;
-				m.type = MessageType::Success;
 				if (connectedPlayers == 0) {
-					strcpy_s(m.msg, "X");
+					SendMsg(p->address, "X",MessageType::Success);
 				}
 				else
 				{
-					strcpy_s(m.msg, "O");
+					SendMsg(p->address, "O", MessageType::Success);
 				}
-				SendMsg(p->address,m);
 
 				connectedPlayers++;
 				if (connectedPlayers == 2) {
-					strcpy_s(m.msg, "Game start!");
 					for (int i = 0; i < 2; i++)
 					{
-						SendMsg(players[i]->address, m);
+						SendMsg(players[i]->address, "Game start!", MessageType::Success);
+						SendMsg(players[i]->address, GetTable(), MessageType::Update);
 					}
+					SendMsg(players[turn]->address, "Your turn!", MessageType::SetTurn);
 				}
 			}
 			else
 			{
-				m.type = MessageType::Fail;
-				strcpy_s(m.msg, "ERROR: Server lleno");
-				SendMsg(si_other, m);
+				SendMsg(si_other, "ERROR: Server lleno",MessageType::Fail);
 			}
 			break;
 		case MessageType::Move:
-			int mov = (int)(message.msg[0] - 48);
-			if (message.msg[1] == '\0' && mov > 0 && mov < 10) {
-				SendMsg(si_other, m);
+			int mov = (int)(message.msg[0] - 48) - 1;
+			if (message.msg[1] == '\0' && mov >= 0 && mov <= 9) {
 				if (values[mov] == 0) {
 					if (turn == 0) {
 						turn = 1;
@@ -204,30 +209,44 @@ int main()
 						turn = 0;
 						values[mov] = 1;
 					}
-					m.type = MessageType::Update;
-					strcpy_s(m.msg, GetTable().c_str());
 					for (int i = 0; i < 2; i++)
 					{
-						SendMsg(players[i]->address, m);
+						SendMsg(players[i]->address, GetTable(), MessageType::Update);
 					}
+
+					for (int i = 0; i < 3; i++)
+					{
+						int lastVal = 0;
+						for (int j = 0; i < 3; i++)
+						{
+							if (values[(i * 3) + j] == 0) {
+								break;
+							}
+							if (j == 0) {
+								lastVal = values[(i * 3) + j];
+							}
+							else
+							{
+								if (lastVal != values[(i * 3) + j]) {
+									break;
+								}
+								else if (j == 2) {
+									//Alguien gano
+								}
+							}
+						}
+					}
+
+					SendMsg(players[turn]->address, "Your turn!", MessageType::SetTurn);
 				}
 				else {
-					m.type = MessageType::Fail;
-					strcpy_s(m.msg, "ERROR: Position taken");
-					SendMsg(si_other, m);
+					SendMsg(si_other, "ERROR: Position taken", MessageType::Fail);
 				}
 			}
 			else
 			{
-				m.type = MessageType::Fail;
-				strcpy_s(m.msg, "ERROR: Unvalid position");
-				SendMsg(si_other, m);
+				SendMsg(si_other, "ERROR: Unvalid position" , MessageType::Fail);
 			}
-			break;
-		default:
-			m.type = MessageType::Fail;
-			strcpy_s(m.msg, "ERROR: Comando desconocido");
-			SendMsg(si_other, m);
 			break;
 		}
 	}
