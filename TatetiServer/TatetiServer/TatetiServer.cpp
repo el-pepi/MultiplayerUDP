@@ -14,17 +14,20 @@ using namespace std;
 
 #define BUFLEN 512  //Max length of buffer
 
+class Player {
+public:
+	sockaddr_in address;
+};
+
 int port = 0;
 SOCKET s;
 int slen;
 
 int values[9] = {0};
 int turn = 0;
+int connectedPlayers = 0;
+Player* players[2];
 
-class Player {
-public:
-	sockaddr_in address;
-};
 
 enum MessageType
 {
@@ -34,7 +37,10 @@ enum MessageType
 	Name,
 	Move,
 	Update,
-	SetTurn
+	SetTurn,
+	Win,
+	Lose,
+	Tie
 };
 
 struct Message {
@@ -87,6 +93,20 @@ void SendMsg(sockaddr_in adr,string msg, MessageType type) {
 	}
 }
 
+void EndGame(int winner) {
+	SendMsg(players[winner]->address, "You win!", MessageType::Win);
+	SendMsg(players[turn]->address, "You lose...", MessageType::Lose);
+
+	for (int i = 0; i < 9; i++)
+	{
+		values[i] = 0;
+	}
+
+	connectedPlayers = 0;
+}
+
+
+
 int main()
 {
 	struct sockaddr_in server, si_other;
@@ -132,12 +152,6 @@ int main()
 		exit(EXIT_FAILURE);
 	}
 	puts("Bind done");
-
-
-
-	int playerTurn = 0;
-	int connectedPlayers = 0;
-	Player* players[2];
 
 
 	//keep listening for data
@@ -199,8 +213,10 @@ int main()
 			break;
 		case MessageType::Move:
 			int mov = (int)(message.msg[0] - 48) - 1;
+			bool finished = false;
 			if (message.msg[1] == '\0' && mov >= 0 && mov <= 9) {
 				if (values[mov] == 0) {
+					int oldTurn = turn;
 					if (turn == 0) {
 						turn = 1;
 						values[mov] = -1;
@@ -214,30 +230,75 @@ int main()
 						SendMsg(players[i]->address, GetTable(), MessageType::Update);
 					}
 
+
 					for (int i = 0; i < 3; i++)
 					{
-						int lastVal = 0;
-						for (int j = 0; i < 3; i++)
-						{
-							if (values[(i * 3) + j] == 0) {
-								break;
-							}
-							if (j == 0) {
-								lastVal = values[(i * 3) + j];
-							}
-							else
-							{
-								if (lastVal != values[(i * 3) + j]) {
-									break;
-								}
-								else if (j == 2) {
-									//Alguien gano
-								}
-							}
+						if (values[i] == 0) {
+							continue;
+						}
+						if (values[i] == values[i + 3] && values[i] == values[i + 6]) {
+							finished = true;
+							EndGame(oldTurn);
+							break;
 						}
 					}
+					if (finished) {
+						continue;
+					}
+					for (int i = 0; i < 3; i++)
+					{
+						if (values[i*3] == 0) {
+							continue;
+						}
+						if (values[i*3] == values[i*3 + 1] && values[i*3] == values[i*3 + 2]) {
+							finished = true;
+							EndGame(oldTurn);
+							break;
+						}
+					}
+					if (finished) {
+						continue;
+					}
 
-					SendMsg(players[turn]->address, "Your turn!", MessageType::SetTurn);
+					if (values[0] != 0 && values[0] == values[4] && values[0] == values[8]) {
+						finished = true;
+						EndGame(oldTurn);
+					}
+					if (finished) {
+						continue;
+					}
+					if (values[2] != 0 && values[2] == values[4] && values[2] == values[6]) {
+						finished = true;
+						EndGame(oldTurn);
+					}
+					if (finished) {
+						continue;
+					}
+					bool tied = true;
+					for (int i = 0; i < 9; i++)
+					{
+						if (values[i] == 0) {
+							tied = false;
+							break;
+						}
+					}
+					if (tied) {
+						finished = true;
+						for (int i = 0; i < 2; i++)
+						{
+							SendMsg(players[i]->address, "Game tied.", MessageType::Tie);
+						}
+
+						for (int i = 0; i < 9; i++)
+						{
+							values[i] = 0;
+						}
+
+						connectedPlayers = 0;
+					}
+					if (finished == false) {
+						SendMsg(players[turn]->address, "Your turn!", MessageType::SetTurn);
+					}
 				}
 				else {
 					SendMsg(si_other, "ERROR: Position taken", MessageType::Fail);

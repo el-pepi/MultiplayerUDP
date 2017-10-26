@@ -32,7 +32,10 @@ enum MessageType
 	Name,
 	Move,
 	Update,
-	SetTurn
+	SetTurn,
+	Win,
+	Lose,
+	Tie
 };
 
 enum GameStates {
@@ -83,6 +86,16 @@ void GetData(char buf[BUFLEN]) {
 		DrawTable();
 		return;
 	}
+	if (m->type == MessageType::Win || m->type == MessageType::Lose || m->type == MessageType::Tie) {
+		gameState = GameStates::Connecting;
+		printf("%s\n",m->msg);
+		
+		system("pause");
+
+		SendMsg(si_other, "Connecting", MessageType::Connect);
+
+		return;
+	}
 
 
 	switch (gameState)
@@ -117,6 +130,8 @@ void GetData(char buf[BUFLEN]) {
 
 			printf("Enter position: ");
 			char msg[256];
+			cin.clear();
+			cin.ignore(1);
 			cin.getline(msg, sizeof(msg));
 
 			SendMsg(si_other, msg, MessageType::Move);
@@ -202,8 +217,6 @@ int main()
 			exit(EXIT_FAILURE);
 		}
 		GetData(buf);
-		//Message* message = reinterpret_cast<Message*>(buf);
-		//printf("%s\n", message->msg);
 	}
 
 	closesocket(s);
